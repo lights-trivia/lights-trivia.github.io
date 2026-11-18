@@ -222,7 +222,7 @@ footer{display:flex;justify-content:space-between;align-items:center;color:rgba(
           <li>Teams of about 5. Each team picks a captain who calls the final answer.</li>
           <li>Captains answer by shouting the color, holding up 1 to 4 fingers, or typing in the meeting chat.</li>
           <li>After the reveal, tap the teams that got it right. Each correct answer is <b>1000</b> points; the final question is <b>double</b>.</li>
-          <li>Keys: <kbd>Space</kbd> next · <kbd>P</kbd> pause · <kbd>B</kbd> back · <kbd>1</kbd>-<kbd>8</kbd> mark teams</li>
+          <li>Keys: <kbd>Space</kbd> next · <kbd>P</kbd> pause · <kbd>B</kbd> back a step · <kbd>1</kbd>-<kbd>8</kbd> mark teams</li>
         </ol></div>
       </div>
       <div class="rounds" id="roundPills"></div>
@@ -236,6 +236,7 @@ footer{display:flex;justify-content:space-between;align-items:center;color:rgba(
         <h2 id="rTitle"></h2>
         <div class="blurb hand" id="rBlurb"></div>
         <button class="btn primary" id="rGo">Let's go →</button>
+        <button class="btn small" id="rBack" style="margin-top:14px">← Back</button>
       </div>
     </section>
 
@@ -256,7 +257,7 @@ footer{display:flex;justify-content:space-between;align-items:center;color:rgba(
         <div class="card fact"><span class="hand">✦ fun fact</span><p id="factText"></p></div>
         <div class="card who"><span class="hand">who got it? tap the winners ↓</span><div class="chips" id="chips"></div></div>
       </div>
-      <div class="bar"><button class="btn" id="pauseBtn">⏸ Pause</button><button class="btn primary" id="nextBtn">Reveal answer</button></div>
+      <div class="bar"><button class="btn" id="qBack">← Back</button><button class="btn" id="pauseBtn">⏸ Pause</button><button class="btn primary" id="nextBtn">Reveal answer</button></div>
     </section>
 
     <section class="screen" id="s-board">
@@ -264,7 +265,7 @@ footer{display:flex;justify-content:space-between;align-items:center;color:rgba(
         <h2>Leaderboard</h2>
         <div class="sub hand" id="boardSub"></div>
         <div id="rows"></div>
-        <div class="bar"><button class="btn" id="backBtn">← Back to answer</button><button class="btn primary" id="boardNext">Next →</button></div>
+        <div class="bar"><button class="btn" id="backBtn">← Back</button><button class="btn primary" id="boardNext">Next →</button></div>
       </div>
     </section>
 
@@ -272,7 +273,7 @@ footer{display:flex;justify-content:space-between;align-items:center;color:rgba(
       <div class="final-title"><div class="hand" id="finSub">and the champions are...</div><h2 id="finTitle">Happy Diwali &amp; Happy Thanksgiving! 🪔🦃</h2></div>
       <div class="podium" id="podium"></div>
       <div class="rest" id="rest"></div>
-      <div class="bar" style="justify-content:center"><button class="btn primary" id="tbBtn" style="display:none">⚡ Sudden-death tiebreaker</button><button class="btn" id="againBtn">↺ Play again</button></div>
+      <div class="bar" style="justify-content:center"><button class="btn primary" id="tbBtn" style="display:none">⚡ Sudden-death tiebreaker</button><button class="btn" id="fBack">← Back</button><button class="btn" id="againBtn">↺ Play again</button></div>
     </section>
   </main>
   <div class="overlay" id="rulesOv">
@@ -299,7 +300,7 @@ footer{display:flex;justify-content:space-between;align-items:center;color:rgba(
           <kbd>Space</kbd><span>next step</span>
           <kbd>P</kbd><span>pause or resume the timer</span>
           <kbd>1-8</kbd><span>mark teams correct</span>
-          <kbd>B</kbd><span>back (undo the last scores)</span>
+          <kbd>B</kbd><span>go back one step (also <kbd>←</kbd>); undoes points too</span>
           <kbd>R</kbd><span>open or close these rules</span></div></div>
       </div>
       <div class="foot"><span class="paused hand" id="rulesPaused"></span><button class="btn primary" id="rulesOk">Got it, let's play!</button></div>
@@ -402,7 +403,7 @@ function renderTeams(){ const L=$("teamList"); L.innerHTML="";
   $("addTeam").style.display=teams.length>=8?"none":""; }
 $("addTeam").onclick=()=>{ if(teams.length<8){teams.push({name:"Team "+(teams.length+1),score:0,last:0});renderTeams();} };
 $("roundPills").innerHTML=ROUNDS.map((r,i)=>'<span class="rpill">'+r.emo+' Round '+(i+1)+': '+r.title+'</span>').join("");
-$("startBtn").onclick=()=>{ ac(); teams.forEach(t=>{t.score=0;t.last=0;t.streak=0;t.prevStreak=0}); idx=0; tb=-1; tbTeams=[]; scored=new Set(); showRound(0); };
+$("startBtn").onclick=()=>{ ac(); undoStack=[]; snap(); teams.forEach(t=>{t.score=0;t.last=0;t.streak=0;t.prevStreak=0}); idx=0; tb=-1; tbTeams=[]; scored=new Set(); showRound(0); };
 
 /* rules overlay */
 function openRules(){ if(rulesOpen) return; rulesOpen=true; pausedBeforeRules=paused;
@@ -450,7 +451,7 @@ function showQuestion(){ phase="question"; paused=false; marks=new Set(); const 
   startTimer(Q.t); }
 function startTimer(sec){ clearInterval(timerId); timeLeft=sec; drawRing(sec,sec);
   timerId=setInterval(()=>{ if(paused) return; timeLeft--; drawRing(timeLeft,sec);
-    if(timeLeft<=5&&timeLeft>0) tone(880,.06,"square",.04); if(timeLeft<=0){ clearInterval(timerId); timedOut=true; stamp("time's up!"); tone(196,.5,"sawtooth",.06); setTimeout(()=>{ if(phase==="question") reveal(); },1100); } },1000); }
+    if(timeLeft<=5&&timeLeft>0) tone(880,.06,"square",.04); if(timeLeft<=0){ clearInterval(timerId); timedOut=true; stamp("time's up!"); tone(196,.5,"sawtooth",.06); setTimeout(()=>{ if(phase==="question"){ snap(); reveal(); } },1100); } },1000); }
 function drawRing(t,total){ $("num").textContent=Math.max(t,0); const arc=$("arc"); arc.style.transition="stroke-dashoffset 1s linear";
   arc.style.strokeDashoffset=402.1*(1-Math.max(t,0)/total); $("ring").classList.toggle("urgent",t<=5&&t>0); $("ringLbl").textContent=t<=0?"time's up!":"seconds"; }
 function reveal(){ clearInterval(timerId); phase="reveal"; const Q=curQ();
@@ -464,7 +465,6 @@ function reveal(){ clearInterval(timerId); phase="reveal"; const Q=curQ();
 function applyTB(){ const key="tb"+tb; if(scored.has(key)) return; scored.add(key); teams.forEach((t,i)=>{ t.last=marks.has(i)?500:0; t.score+=t.last; }); }
 function applyScores(){ if(tb>=0){ applyTB(); return; } if(scored.has(idx)) return; scored.add(idx); const pts=QUESTIONS[idx].dbl?2000:1000;
   teams.forEach((t,i)=>{ t.prevStreak=t.streak; t.last=marks.has(i)?pts:0; t.score+=t.last; t.streak=marks.has(i)?t.streak+1:0; }); }
-function unapplyScores(){ if(!scored.has(idx)) return; scored.delete(idx); teams.forEach(t=>{ t.score-=t.last; t.last=0; t.streak=t.prevStreak; }); }
 function showBoard(){ applyScores(); phase="board"; show("s-board");
   const left=QUESTIONS.length-idx-1, nextQ=QUESTIONS[idx+1];
   $("boardSub").textContent = left===1?"one question left, and it's worth double!": (nextQ.r!==QUESTIONS[idx].r?"end of round "+(QUESTIONS[idx].r+1)+"! "+left+" questions to go":left+" questions to go");
@@ -508,18 +508,34 @@ function showFinal(){ applyScores(); phase="final"; show("s-final");
   else { $("finSub").textContent=tb>=0?"sudden death settles it! the champions are...":"and the champions are..."; $("finTitle").textContent="Happy Diwali & Happy Thanksgiving! 🪔🦃"; }
   setTimeout(()=>{ fanfare(); confetti(280); for(let i=0;i<9;i++) setTimeout(()=>launch(W*(.15+Math.random()*.7),H*(.12+Math.random()*.25)),i*420); },2300);
   setTimeout(()=>walker("🦃","happy holidays!"),3500); }
-$("tbBtn").onclick=()=>{ tbTeams=leadersBy(t=>t.score); tb++; stamp("sudden death!"); setTimeout(()=>countdown(showQuestion),900); };
+$("tbBtn").onclick=()=>{ snap(); tbTeams=leadersBy(t=>t.score); tb++; phase="countdown"; stamp("sudden death!"); setTimeout(()=>countdown(showQuestion),900); };
 function next(){
   if(rulesOpen){ closeRules(); return; }
-  if(phase==="countdown") return;
+  if(phase==="countdown"||phase==="setup"||phase==="final") return;
+  snap();
   if(phase==="round") countdown(showQuestion);
   else if(phase==="question") reveal();
   else if(phase==="reveal") (tb>=0||idx===QUESTIONS.length-1?showFinal:showBoard)();
   else if(phase==="board"){ const prev=QUESTIONS[idx].r; idx++; if(QUESTIONS[idx].r!==prev) showRound(QUESTIONS[idx].r); else showQuestion(); } }
-function back(){ if(phase==="board"){ unapplyScores(); phase="reveal"; show("s-q"); } }
-$("nextBtn").onclick=next; $("boardNext").onclick=next; $("backBtn").onclick=back;
+let undoStack=[];
+function snap(){ undoStack.push({phase, idx, tb, tbTeams:[...tbTeams], marks:new Set(marks), scored:new Set(scored), timeLeft, teams:teams.map(t=>({...t}))}); }
+function back(){
+  if(rulesOpen||phase==="countdown"||!undoStack.length) return;
+  const s=undoStack.pop(); clearInterval(timerId);
+  idx=s.idx; tb=s.tb; tbTeams=s.tbTeams; scored=s.scored; teams=s.teams;
+  tone(440,.12,"triangle",.07); tone(330,.14,"triangle",.06,.08);
+  if(s.phase==="setup"){ phase="setup"; show("s-setup"); renderTeams(); }
+  else if(s.phase==="round") showRound(QUESTIONS[idx].r);
+  else if(s.phase==="question"){ showQuestion(); clearInterval(timerId); const tot=curQ().t; marks=new Set(s.marks);
+    timeLeft=Math.max(s.timeLeft,5); paused=true; drawRing(timeLeft,tot); $("pauseBtn").textContent="▶ Resume";
+    timerId=setInterval(()=>{ if(paused) return; timeLeft--; drawRing(timeLeft,tot);
+      if(timeLeft<=5&&timeLeft>0) tone(880,.06,"square",.04); if(timeLeft<=0){ clearInterval(timerId); stamp("time's up!"); setTimeout(()=>{ if(phase==="question"){ snap(); reveal(); } },1100); } },1000); }
+  else if(s.phase==="reveal"){ showQuestion(); clearInterval(timerId); marks=new Set(s.marks); reveal(); }
+  else if(s.phase==="board") showBoard();
+  else if(s.phase==="final") showFinal(); }
+$("nextBtn").onclick=next; $("boardNext").onclick=next; $("backBtn").onclick=back; $("qBack").onclick=back; $("rBack").onclick=back; $("fBack").onclick=back;
 $("pauseBtn").onclick=()=>{ paused=!paused; $("pauseBtn").textContent=paused?"▶ Resume":"⏸ Pause"; };
-$("againBtn").onclick=()=>{ tb=-1; tbTeams=[]; phase="setup"; show("s-setup"); renderTeams(); };
+$("againBtn").onclick=()=>{ snap(); tb=-1; tbTeams=[]; phase="setup"; show("s-setup"); renderTeams(); };
 document.addEventListener("keydown",e=>{ if(e.target.tagName==="INPUT") return;
   if(document.activeElement&&document.activeElement.tagName==="BUTTON") document.activeElement.blur();
   if(e.key==="r"||e.key==="R"||e.key==="?"){ rulesOpen?closeRules():openRules(); return; }
